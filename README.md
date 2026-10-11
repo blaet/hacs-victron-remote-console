@@ -99,6 +99,9 @@ dist/        bundled single file loaded by HA (do not edit)
 ### Local-run isolation
 
 Nothing is installed outside the repository: `.npmrc` keeps the npm cache in `./.npm-cache`, dependencies install to `./node_modules`, and Playwright's browser downloads go to `./.cache`. All of these are gitignored, and `npm run clean` removes them completely. No global installs, no writes to your home directory. (Chromium may need system libraries on first use — if so the verify script prints the one-liner `sudo npx playwright install-deps chromium`, which is the only step that touches your OS.)
+## Acknowledgements
+
+The Overview and Brief views are modeled on Victron Energy's [GUI v2](https://github.com/victronenergy/gui-v2) (the Venus OS / VRM remote console). This project contains no Victron source code; it is an independent implementation that follows the design and behavior of the original console, and is intended for use with Victron Energy systems.
 
 ## License
 
