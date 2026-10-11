@@ -57,14 +57,22 @@ const VRC_DEFAULT_CONFIG = {
   animate: true,
 };
 
+// Palette from gui-v2 themes/color/ColorDesign.json (dark scheme)
 const VRC_STATUS_COLORS = {
-  ok: "#4bd966",
-  warning: "#f5a623",
-  critical: "#eb4d4d",
-  neutral: "#404040",
+  ok: "#387DC5",
+  warning: "#F0962E",
+  critical: "#F35C58",
+  neutral: "#504F4B",
+};
+// Dark-variant track/background colors (color_darkOk etc.)
+const VRC_DARK_COLORS = {
+  ok: "#11263B",
+  warning: "#482D0E",
+  critical: "#491C1B",
+  neutral: "#272622",
 };
 
-const VRC_SOC_THRESHOLDS = { warning: 30, critical: 10 };
+const VRC_SOC_THRESHOLDS = { warning: 20, critical: 10 };
 const VRC_THEME = {
   color_page_background: "#1c1c1c",
   color_card_background: "#2d2d2d",
