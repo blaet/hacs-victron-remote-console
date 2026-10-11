@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Victron Remote Console card — demo harness</title>
+<style>
+  body { background: #1c1c1c; color: #fff; font-family: Roboto, Noto, sans-serif; margin: 0; padding: 16px; }
+  ha-card { display:block; background:#2d2d2d; border-radius: 12px; max-width: 900px; margin: 0 auto; }
+  .hint { color:#9c9c9c; max-width: 900px; margin: 8px auto 20px auto; font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="hint">Rendered with mocked hass states — harness for visual verification.</div>
+<ha-card id="card-holder"></ha-card>
+<script type="module" src="../dist/victron-remote-console.js"></script>
+<script type="module">
+const STATES = {
+  "sensor.battery_soc": { state: "76.4", attributes: { unit_of_measurement: "%" } },
+  "sensor.battery_power": { state: "-842", attributes: { unit_of_measurement: "W" } },
+  "sensor.battery_voltage": { state: "53.1", attributes: { unit_of_measurement: "V" } },
+  "sensor.battery_current": { state: "-15.9", attributes: { unit_of_measurement: "A" } },
+  "sensor.battery_time_to_go": { state: "345", attributes: { unit_of_measurement: "min" } },
+  "sensor.ac_input_power": { state: "2300", attributes: { unit_of_measurement: "W" } },
+  "sensor.solar_power": { state: "1285", attributes: { unit_of_measurement: "W" } },
+  "sensor.solar_yield_today": { state: "4.83", attributes: { unit_of_measurement: "kWh" } },
+  "sensor.inverter_power": { state: "1450", attributes: { unit_of_measurement: "W" } },
+  "sensor.inverter_state": { state: "Charging" },
+  "sensor.ac_loads_power": { state: "1743", attributes: { unit_of_measurement: "W" } },
+  "sensor.dc_loads_power": { state: "42", attributes: { unit_of_measurement: "W" } },
+  "sensor.ev_power": { state: "0", attributes: { unit_of_measurement: "W" } },
+  "sensor.ev_state": { state: "Disconnected" },
+};
+const HASS = {
+  locale: { language: "en" },
+  states: STATES,
+};
+const CONFIG = {
+  type: "custom:victron-remote-console-card",
+  view: "overview",
+  title: "Home",
+  elements: {
+    battery_soc: "sensor.battery_soc",
+    battery_power: "sensor.battery_power",
+    battery_voltage: "sensor.battery_voltage",
+    battery_current: "sensor.battery_current",
+    battery_time_to_go: "sensor.battery_time_to_go",
+    ac_input_power: "sensor.ac_input_power",
+    solar_power: "sensor.solar_power",
+    solar_yield_today: "sensor.solar_yield_today",
+    inverter_power: "sensor.inverter_power",
+    inverter_state: "sensor.inverter_state",
+    ac_loads_power: "sensor.ac_loads_power",
+    dc_loads_power: "sensor.dc_loads_power",
+    ev_power: "sensor.ev_power",
+    ev_state: "sensor.ev_state",
+  },
+  invert: [],
+  show_connectors: true,
+};
+const card = document.createElement("custom:victron-remote-console-card".replace("custom:",""));
+card.setConfig(CONFIG);
+card.hass = HASS;
+document.getElementById("card-holder").appendChild(card);
+window._vrc = { card, CONFIG, HASS };
+</script>
+</body>
+</html>
