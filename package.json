@@ -1,0 +1,20 @@
+{
+  "name": "hacs-victron-remote-console",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Victron Remote Console v2 (Overview + Brief) Lovelace card for Home Assistant",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node tools/bundle.js",
+    "verify": "node tools/verify.js",
+    "check": "npm run build && npm run verify",
+    "clean": "node -e \"require('fs').rmSync('node_modules',{recursive:true,force:true}); require('fs').rmSync('.npm-cache',{recursive:true,force:true}); require('fs').rmSync('.cache',{recursive:true,force:true}); console.log('cleaned')\""
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  }
+}

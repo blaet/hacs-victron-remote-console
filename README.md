@@ -91,9 +91,14 @@ tools/       bundle + visual verification harness
 dist/        bundled single file loaded by HA (do not edit)
 ```
 
-- Bundle: `node tools/bundle.js`
-- Visual verification (renders `tools/demo.html` with mocked states and screenshots both views):
-  `node tools/verify.js`
+- `npm run build` — bundle `dist/` from `src/`
+- `npm run verify` — render both views with mocked states and screenshot them (first run auto-installs dependencies)
+- `npm run check` — build + verify
+- `npm run clean` — remove all repo-local dev state
+
+### Local-run isolation
+
+Nothing is installed outside the repository: `.npmrc` keeps the npm cache in `./.npm-cache`, dependencies install to `./node_modules`, and Playwright's browser downloads go to `./.cache`. All of these are gitignored, and `npm run clean` removes them completely. No global installs, no writes to your home directory. (Chromium may need system libraries on first use — if so the verify script prints the one-liner `sudo npx playwright install-deps chromium`, which is the only step that touches your OS.)
 
 ## License
 
