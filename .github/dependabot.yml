@@ -1,0 +1,41 @@
+# Dependabot configuration.
+#
+# Supply-chain guard: updates are deliberately delayed so we never
+# auto-consume a freshly published release. Dependabot's smallest delay
+# granularity is "weekly"; scheduling on Friday gives ~3-5 days of backoff
+# after the typical Tue-Thu release window, approximating the requested
+# 5-day backoff. GitHub Actions are pinned to commit SHAs (see ci.yml), so
+# Dependabot updates the SHAs — review the diff before merging.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci:"
+      include: "scope"
+
+  # Dev dependencies only (playwright, pinned exact in package.json).
+  # No runtime dependencies are shipped by this project.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    allow:
+      - dependency-type: "direct"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore:"
+      include: "scope"
