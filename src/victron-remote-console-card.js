@@ -146,60 +146,84 @@ const BRIEF_STYLES = `
 const OVERVIEW_STYLES = `
 .vrc-overview {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr;
-  gap: 4px 48px;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 2px 56px;
   padding: 12px 4px 24px 4px;
   align-items: stretch;
   position: relative;
+  background: transparent;
 }
 .vrc-ov-col {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .vrc-widget {
-  border: 1px solid var(--vrc-line);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border: 1px solid var(--vrc-widget-border, #22374e);
+  border-radius: 8px;
+  background: var(--vrc-widget-bg, #0d1b29);
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
 }
 .vrc-widget-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: .8rem;
+  font-size: .78rem;
   color: var(--vrc-fg2);
+  white-space: nowrap;
 }
-.vrc-widget-main { font-size: 1.15rem; }
-.vrc-widget-sub { font-size: .8rem; color: var(--vrc-fg2); }
+.vrc-widget-main { font-size: 1.25rem; font-weight: 500; }
+.vrc-widget-main .neg { color: var(--vrc-green); }
+.vrc-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: .72rem;
+  color: var(--vrc-fg2);
+  margin-top: 2px;
+}
+.vrc-phases span b { color: var(--vrc-fg); font-weight: 400; }
+.vrc-widget-sub { font-size: .78rem; color: var(--vrc-fg2); }
 .vrc-widget.missing {
   opacity: .45;
   border-style: dashed;
 }
+/* Central column: inverter tile ~2x height of side tiles, battery below */
+.vrc-widget.inverter {
+  min-height: 96px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.vrc-widget.inverter .vrc-widget-main { font-size: 1rem; font-weight: 400; }
+.vrc-widget.battery .vrc-widget-main { font-size: 1.9rem; font-weight: 300; }
+.vrc-widget.battery { align-items: center; text-align: center; }
+.vrc-widget.battery .vrc-widget-sub { color: var(--vrc-fg2); }
+/* Connector lines: thin blue curves with animated dots (3 per line) */
 .vrc-flow {
   stroke: var(--vrc-blue);
   fill: none;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
-.vrc-flow.active {
-  stroke-dasharray: 5 4;
-  animation: vrc-dash 1s linear infinite;
+.vrc-flow-dot {
+  fill: var(--vrc-blue);
 }
-@keyframes vrc-dash {
-  to { stroke-dashoffset: -9; }
+.vrc-flow-dot.active {
+  animation: vrc-dot 1.6s linear infinite;
 }
-.vrc-power-badge {
-  border-radius: 8px;
-  padding: 1px 8px;
-  font-size: .75rem;
+@keyframes vrc-dot {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -12; }
 }
 @media (max-width: 640px) {
-  .vrc-overview { grid-template-columns: 1fr; }
+  .vrc-overview { grid-template-columns: 1fr; gap: 8px; }
 }
 `;
+
 
 // Arc geometry per gui-v2 components/Gauges.js + themes/geometry/SevenInch.json:
 // central gauge 400px, edge-gauge arc radius 456, max side angle 53deg,
@@ -485,118 +509,153 @@ class VictronRemoteConsoleCard extends HTMLElement {
     const e = (k) => cfg.elements[k];
     const num = (k) => resolveNumber(hass, cfg, k);
     const str = (k, f) => resolveString(hass, cfg, k, f) || f;
-    const widgets = [];
-    const addWidget = (id, title, main, sub, entity, flow) => {
-      widgets.push({ id, title, main, sub, entity, flow, missing: !entity });
+
+    // Helper: phase rows (L1/L2/L3) shown under a main value.
+    const phaseRows = (l1, l2, l3) => {
+      if (!e(l1) && !e(l2) && !e(l3)) return "";
+      const rows = [
+        e(l1) ? `<span>L1 <b>${formatPower(num(l1), locale)}</b></span>` : "",
+        e(l2) ? `<span>L2 <b>${formatPower(num(l2), locale)}</b></span>` : "",
+        e(l3) ? `<span>L3 <b>${formatPower(num(l3), locale)}</b></span>` : "",
+      ].filter(Boolean);
+      return rows.length ? `<div class="vrc-phases">${rows.join("")}</div>` : "";
     };
+    // Negative values render green (feed-in), like the real console.
+    const mainValue = (k) => {
+      const v = num(k);
+      if (v === null) return "--";
+      const cls = v < 0 ? "neg" : "";
+      return `<span class="${cls}">${formatPower(v, locale)}</span>`;
+    };
+
+    const widgets = [];
+    const addWidget = (w) => { widgets.push(w); };
+
+    // Left column: Grid (AC input), Solar
     const acSource = str("ac_input_source", "Grid");
-    if (e("ac_input_power") || e("ac_input_current"))
-      addWidget(
-        "ac-input",
-        `AC input — ${acSource}`,
-        formatPower(num("ac_input_power"), locale),
-        [e("ac_input_current") ? formatCurrent(num("ac_input_current"), locale) : null,
-         e("ac_input_voltage") ? formatVoltage(num("ac_input_voltage"), locale) : null]
-          .filter(Boolean).join(" · "),
-        e("ac_input_power"),
-        num("ac_input_power") !== null && num("ac_input_power") > 0
-      );
-    if (e("solar_power") || e("solar_yield_today"))
-      addWidget(
-        "solar",
-        "Solar",
-        formatPower(num("solar_power"), locale),
-        e("solar_yield_today") ? `Today: ${formatEnergy(num("solar_yield_today"), locale)}` : "",
-        e("solar_power"),
-        num("solar_power") !== null && num("solar_power") > 0
-      );
+    if (e("ac_input_power") || e("ac_input_current") || e("ac_input_l1"))
+      addWidget({
+        id: "ac-input", title: acSource, col: "left",
+        main: e("ac_input_power") ? mainValue("ac_input_power") : "--",
+        extra: phaseRows("ac_input_l1", "ac_input_l2", "ac_input_l3"),
+        sub: "", entity: e("ac_input_power"),
+        flow: num("ac_input_power") !== null && num("ac_input_power") !== 0,
+      });
+    if (e("solar_power") || e("solar_l1"))
+      addWidget({
+        id: "solar", title: "Solar", col: "left",
+        main: e("solar_power") ? mainValue("solar_power") : "--",
+        extra: phaseRows("solar_l1", "solar_l2", "solar_l3"),
+        sub: e("solar_yield_today") ? `Today: ${formatEnergy(num("solar_yield_today"), locale)}` : "",
+        entity: e("solar_power"),
+        flow: num("solar_power") !== null && num("solar_power") > 0,
+      });
     for (const [key, label] of [
       ["alternator_power", "Alternator"],
       ["wind_power", "Wind"],
       ["dc_generator_power", "DC generator"],
     ]) {
-      if (e(key)) addWidget(key, label, formatPower(num(key), locale), "", e(key), num(key) > 0);
+      if (e(key)) addWidget({
+        id: key, title: label, col: "left",
+        main: mainValue(key), extra: "", sub: "", entity: e(key),
+        flow: num(key) > 0,
+      });
     }
+
+    // Center column: Inverter/Charger (state only, like the real console) + Battery
     const invState = str("inverter_state", "");
-    const evState = str("ev_state", "");
-    addWidget(
-      "inverter",
-      "Inverter / Charger",
-      formatPower(num("inverter_power"), locale),
-      invState || "",
-      e("inverter_power"),
-      num("inverter_power") !== null && num("inverter_power") !== 0
-    );
+    addWidget({
+      id: "inverter", title: "Inverter / Charger", col: "center",
+      main: invState || (e("inverter_power") ? formatPower(num("inverter_power"), locale) : "--"),
+      extra: "", sub: "", entity: e("inverter_power") || e("inverter_state"),
+      stateWidget: true,
+      flow: e("inverter_power") && num("inverter_power") !== null && num("inverter_power") !== 0,
+    });
     const soc = num("battery_soc");
-    addWidget(
-      "battery",
-      "Battery",
-      formatPercent(soc, locale),
-      [
-        e("battery_voltage") ? formatVoltage(num("battery_voltage"), locale) : null,
-        e("battery_current") ? formatCurrent(num("battery_current"), locale) : null,
-        e("battery_time_to_go") && num("battery_time_to_go") !== null
-          ? `Ttg ${formatTimeToGo(num("battery_time_to_go"))}` : null,
-      ].filter(Boolean).join(" · "),
-      e("battery_soc"),
-      num("battery_power") !== null && num("battery_power") > 0
-    );
-    if (e("ac_loads_power") || e("ac_loads_critical_power"))
-      addWidget(
-        "ac-loads",
-        "AC loads",
-        formatPower(num("ac_loads_power"), locale),
-        e("ac_loads_critical_power")
-          ? `Critical: ${formatPower(num("ac_loads_critical_power"), locale)}` : "",
-        e("ac_loads_power"),
-        num("ac_loads_power") !== null && num("ac_loads_power") > 0
-      );
+    const bPower = num("battery_power");
+    const battState = bPower === null ? "" : (bPower > 0 ? "Charging" : "Discharging");
+    const ttg = num("battery_time_to_go");
+    const vaRow = [
+      e("battery_voltage") ? formatVoltage(num("battery_voltage"), locale) : null,
+      e("battery_current") ? formatCurrent(num("battery_current"), locale) : null,
+      e("battery_power") ? formatPower(bPower, locale) : null,
+    ].filter(Boolean).join("  ");
+    addWidget({
+      id: "battery", title: "Battery", col: "center",
+      main: soc === null ? "--" : formatPercent(soc, locale),
+      extra: "",
+      sub: [
+        battState,
+        ttg !== null ? formatTimeToGo(ttg) : "",
+      ].filter(Boolean).join("  "),
+      sub2: vaRow,
+      entity: e("battery_soc"),
+      batteryWidget: true,
+      flow: bPower !== null && bPower !== 0,
+    });
+
+    // Right column: AC loads, Essential loads, DC loads, EV charger
+    if (e("ac_loads_power") || e("ac_loads_l1"))
+      addWidget({
+        id: "ac-loads", title: "AC Loads", col: "right",
+        main: e("ac_loads_power") ? mainValue("ac_loads_power") : "--",
+        extra: phaseRows("ac_loads_l1", "ac_loads_l2", "ac_loads_l3"),
+        sub: "", entity: e("ac_loads_power"),
+        flow: num("ac_loads_power") > 0,
+      });
+    if (e("ac_loads_critical_power") || e("ac_loads_critical_l1"))
+      addWidget({
+        id: "essential-loads", title: "Essential Loads", col: "right",
+        main: e("ac_loads_critical_power") ? mainValue("ac_loads_critical_power") : "--",
+        extra: phaseRows("ac_loads_critical_l1", "ac_loads_critical_l2", "ac_loads_critical_l3"),
+        sub: "", entity: e("ac_loads_critical_power"),
+        flow: num("ac_loads_critical_power") > 0,
+      });
     if (e("dc_loads_power"))
-      addWidget("dc-loads", "DC loads", formatPower(num("dc_loads_power"), locale), "",
-        e("dc_loads_power"), num("dc_loads_power") > 0);
+      addWidget({
+        id: "dc-loads", title: "DC Loads", col: "right",
+        main: mainValue("dc_loads_power"), extra: "", sub: "",
+        entity: e("dc_loads_power"), flow: num("dc_loads_power") > 0,
+      });
     if (e("ev_power") || e("ev_state"))
-      addWidget(
-        "ev-charger",
-        "EV charger",
-        e("ev_power") ? formatPower(num("ev_power"), locale) : "",
-        e("ev_state") ? evState : "",
-        e("ev_power"),
-        num("ev_power") > 0
-      );
+      addWidget({
+        id: "ev-charger", title: "EV Charger", col: "right",
+        main: e("ev_power") ? mainValue("ev_power") : "",
+        extra: "", sub: str("ev_state", "") || "", entity: e("ev_power"),
+        flow: num("ev_power") > 0,
+      });
+
     const byId = Object.fromEntries(widgets.map((w) => [w.id, w]));
-    const batteryId = byId.battery ? "battery" : null;
-    const inverterId = byId.inverter ? "inverter" : null;
-    const leftCol = ["ac-input", "solar", "alternator_power", "wind_power", "dc_generator_power"];
-    const rightCol = ["ac-loads", "dc-loads", "ev-charger"];
+    // Connector paths as in the real console: Grid→Inv, Solar→Inv,
+    // Inv→AC loads, Inv→Essential loads, Inv→Battery.
     const flowLines = [];
-    if (cfg.show_connectors) {
-      const l2i = inverterId && byId["ac-input"]?.flow;
-      const s2i = inverterId && byId.solar?.flow;
-      const i2l = inverterId && byId["ac-loads"]?.flow;
-      const i2b = inverterId && batteryId && byId.inverter?.flow && byId.battery?.flow;
-      const s2b = batteryId && byId.solar?.flow;
-      const b2l = batteryId && byId["ac-loads"]?.flow && !inverterId;
-      if (l2i) flowLines.push(["ac-input", "inverter"]);
-      if (s2i) flowLines.push(["solar", "inverter"]);
-      if (i2l) flowLines.push(["inverter", "ac-loads"]);
-      if (i2b) flowLines.push(["inverter", "battery"]);
-      if (s2b) flowLines.push(["solar", "battery"]);
-      if (b2l) flowLines.push(["battery", "ac-loads"]);
+    if (cfg.show_connectors !== false) {
+      if (byId["ac-input"]?.flow && byId.inverter) flowLines.push(["ac-input", "inverter"]);
+      if (byId.solar?.flow && byId.inverter) flowLines.push(["solar", "inverter"]);
+      if (byId.inverter?.flow && byId["ac-loads"]) flowLines.push(["inverter", "ac-loads"]);
+      if (byId.inverter?.flow && byId["essential-loads"]) flowLines.push(["inverter", "essential-loads"]);
+      if (byId.inverter && byId.battery && (byId.inverter.flow || byId.battery.flow)) flowLines.push(["inverter", "battery"]);
     }
+
     const widgetHtml = (w) => `
-      <div class="vrc-widget ${w.missing ? "missing" : ""}" data-widget="${w.id}" ${w.entity ? `data-entity="${w.entity}"` : ""}>
+      <div class="vrc-widget ${w.stateWidget ? "inverter" : ""} ${w.batteryWidget ? "battery" : ""} ${!w.entity ? "missing" : ""}"
+           data-widget="${w.id}" ${w.entity ? `data-entity="${w.entity}"` : ""}>
         <div class="vrc-widget-title">${w.title}</div>
         <div class="vrc-widget-main">${w.main}</div>
+        ${w.extra || ""}
         ${w.sub ? `<div class="vrc-widget-sub">${w.sub}</div>` : ""}
+        ${w.sub2 ? `<div class="vrc-widget-sub">${w.sub2}</div>` : ""}
       </div>`;
+
+    const leftIds = widgets.filter((w) => w.col === "left").map((w) => w.id);
+    const centerIds = widgets.filter((w) => w.col === "center").map((w) => w.id);
+    const rightIds = widgets.filter((w) => w.col === "right").map((w) => w.id);
+
     content.innerHTML = `
     <div class="vrc-overview">
-      <div class="vrc-ov-col">${leftCol.filter((id) => byId[id]).map((id) => widgetHtml(byId[id])).join("")}</div>
-      <div class="vrc-ov-col">
-        ${inverterId ? widgetHtml(byId.inverter) : ""}
-        ${batteryId ? widgetHtml(byId.battery) : ""}
-      </div>
-      <div class="vrc-ov-col">${rightCol.filter((id) => byId[id]).map((id) => widgetHtml(byId[id])).join("")}</div>
+      <div class="vrc-ov-col">${leftIds.map((id) => widgetHtml(byId[id])).join("")}</div>
+      <div class="vrc-ov-col">${centerIds.map((id) => widgetHtml(byId[id])).join("")}</div>
+      <div class="vrc-ov-col">${rightIds.map((id) => widgetHtml(byId[id])).join("")}</div>
       ${flowLines.length ? `<svg class="vrc-ov-flows" style="position:absolute;inset:0;pointer-events:none;overflow:visible;">
         ${flowLines.map(([a, b]) => this._flowPath(a, b, content)).filter(Boolean).join("")}
       </svg>` : ""}
@@ -616,10 +675,17 @@ class VictronRemoteConsoleCard extends HTMLElement {
     const x2 = rb.left - rg.left;
     const y2 = rb.top + rb.height / 2 - rg.top;
     const mid = (x1 + x2) / 2;
-    return `<path class="vrc-flow active" d="M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}"/>`;
+    const d = `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`;
+    // Three dots moving along the line (as on the real console).
+    const dots = [0, 1, 2].map((i) => {
+      const t = i / 3;
+      // approximate point on the cubic bezier
+      const bx = (1-t)*(1-t)*(1-t)*x1 + 3*(1-t)*(1-t)*t*mid + 3*(1-t)*t*t*mid + t*t*t*x2;
+      const by = (1-t)*(1-t)*(1-t)*y1 + 3*(1-t)*(1-t)*t*y1 + 3*(1-t)*t*t*y2 + t*t*t*y2;
+      return `<circle class="vrc-flow-dot active" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="2.5"/>`;
+    }).join("");
+    return `<path class="vrc-flow" d="${d}"/>${dots}`;
   }
-
-
 }
 
 if (!customElements.get(VRC_CARD_NAME)) {
