@@ -1,0 +1,45 @@
+# Dependabot configuration.
+#
+# Supply-chain guard: the `cooldown` block enforces a minimum package age
+# of 5 days before any version-update PR is proposed, so a freshly
+# published (potentially poisoned) release is never auto-proposed.
+# Security updates (with a published advisory) bypass the cooldown by
+# design, so CVE patches flow promptly. GitHub Actions are pinned to
+# commit SHAs (see ci.yml); Dependabot bumps the SHAs after cooldown.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    cooldown:
+      default-days: 5
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci:"
+      include: "scope"
+
+  # Dev dependencies only (playwright, pinned exact in package.json).
+  # No runtime dependencies are shipped by this project.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    cooldown:
+      default-days: 5
+    allow:
+      - dependency-type: "direct"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore:"
+      include: "scope"
