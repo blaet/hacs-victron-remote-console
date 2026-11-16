@@ -1,0 +1,7 @@
+{
+  "name": "Victron Remote Console",
+  "render_readme": true,
+  "homeassistant": "2024.1.0",
+  "filename": "dist/victron-remote-console.js",
+  "zip_release": true
+}
